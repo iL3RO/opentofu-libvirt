@@ -77,5 +77,19 @@ locals {
       user_data      = "${path.module}/cloud-init/server3/user-data.yaml"
       network_config = "${path.module}/cloud-init/server3/network-config.yaml"
     }
+    apache3 = {
+      name       = "apache3"
+      memory     = 1024
+      vcpu       = 1
+      base_image = "debian13-base.qcow2"
+
+      networks = [
+        { network_name = "red-externa-e4" },
+        { network_name = "red-datos-e4" }
+      ]
+
+      user_data      = "${path.module}/cloud-init/server4/user-data.yaml"
+      network_config = "${path.module}/cloud-init/server4/network-config.yaml"
+    }
   }
 }

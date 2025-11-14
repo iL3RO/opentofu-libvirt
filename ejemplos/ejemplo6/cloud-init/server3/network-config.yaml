@@ -4,7 +4,5 @@ network:
     ens3:
       dhcp4: true
     ens4:
-      dhcp4: true
-    ens5:
-      dhcp4: true
-
+      dhcp4: false
+      addresses: ["10.0.0.3/24"]

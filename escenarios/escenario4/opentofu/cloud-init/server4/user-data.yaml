@@ -1,5 +1,5 @@
 #cloud-config
-hostname: balanceador
+hostname: apache2
 users:
   - name: debian
     sudo: ALL=(ALL) NOPASSWD:ALL
@@ -13,5 +13,3 @@ chpasswd:
     - name: debian
       password: asdasd
       type: text
-
-

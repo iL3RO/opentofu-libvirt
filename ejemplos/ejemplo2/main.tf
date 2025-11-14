@@ -22,6 +22,13 @@ resource "libvirt_volume" "disk-extra1" {
   format = "qcow2"
   size   = 1 * 1024 * 1024 * 1024 # 1 GB en bytes
 }
+# Disco extra 2 de 5gb
+resource "libvirt_volume" "disk-extra2" {
+  name   = "server1-disk-extra2.qcow2"
+  pool   = var.libvirt_pool_name
+  format = "qcow2"
+  size   = 5 * 5120 * 5120 * 5120 # 1 GB en bytes
+}
 
 
 # Dominio (VM)

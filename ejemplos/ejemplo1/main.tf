@@ -3,7 +3,7 @@
 resource "libvirt_volume" "server1-disk" {
   name           = "server1-linked.qcow2"
   pool           = var.libvirt_pool_name
-  base_volume_id = "${var.libvirt_pool_path}/debian13-base.qcow2"
+  base_volume_id = "${var.libvirt_pool_path}/ubuntu2404-base.qcow2"
   format         = "qcow2"
 }
 
@@ -17,7 +17,7 @@ resource "libvirt_cloudinit_disk" "server1-cloudinit" {
 
 # Dominio (VM)
 resource "libvirt_domain" "server1" {
-  name   = "server1"
+  name   = "server1ubuntu"
   memory = 1024
   vcpu   = 2
 
