@@ -9,8 +9,8 @@
     path: /etc/hosts
     marker: "# {mark} ANSIBLE RED INTERNA"
     block: |
-      10.0.0.3 mariadb.example.org
-      10.0.0.2 apache2.example.org
+      10.0.0.2 mariadb.example.org
+      10.0.0.1 apache2.example.org
     owner: root
     group: root
     mode: '0644'
