@@ -1,0 +1,25 @@
+all:
+  children:
+    servidores_web:
+      hosts:
+        apache2:
+          ansible_host: 192.168.200.101
+          ansible_user: debian
+          ansible_ssh_private_key_file: ~/.ssh/id_ed25519.pub
+          
+
+    servidores_bd:
+      hosts:
+        mariadb:
+          ansible_host: 192.168.200.252
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: ~/.ssh/id_ed25519.pub
+
+
+    servidores_php:
+      hosts:
+        php-fpm:
+          ansible_host: 192.168.200.251
+          ansible_user: debian
+          ansible_ssh_private_key_file: ~/.ssh/id_ed25519.pub
+          

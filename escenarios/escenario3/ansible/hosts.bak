@@ -3,24 +3,29 @@ all:
     servidores_web:
       hosts:
         nginx:
-          ansible_host: 192.168.200.28
+          ansible_host: 192.168.200.101
           ansible_user: debian
           ansible_ssh_private_key_file: ~/.ssh/id_ed25519
     servidores_php:
       hosts:
         php-fpm:
-          ansible_host: 192.168.200.33
+          ansible_host: 192.168.200.251
           ansible_user: debian
           ansible_ssh_private_key_file: ~/.ssh/id_ed25519
     servidores_bd:
       hosts:
         mariadb:
-          ansible_host: 192.168.200.49
-          ansible_user: debian
+          ansible_host: 192.168.200.252
+          ansible_user: ubuntu
           ansible_ssh_private_key_file: ~/.ssh/id_ed25519
   vars:
     ansible_become: yes
     ansible_become_method: sudo
     ansible_become_user: root
-    ansible_python_interpreter: /usr/bin/python3
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+# Fix sudo sin contraseña para mariadb
+servidores_bd:
+  vars:
+    ansible_become: yes
+    ansible_become_method: sudo
+    ansible_become_user: root

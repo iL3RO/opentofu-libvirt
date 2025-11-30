@@ -1,12 +1,11 @@
 #cloud-config
-hostname: mariadb
-fqdn: mariadb.example.org
+hostname: php-fpm
+fqdn: php-fpm.example.org
 manage_etc_hosts: true
 
 users:
   - name: debian
     sudo: ALL=(ALL) NOPASSWD:ALL
-    groups: users, admin
     shell: /bin/bash
     ssh_authorized_keys:
       - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIImhf7JdFUojxgrd5H3Tum8nu3qHbaM02XKy0Boa3JZu arooca27@gmail.com
@@ -17,7 +16,3 @@ package_upgrade: false
 packages:
   - python3
   - python3-apt
-
-runcmd:
-  - echo "debian ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/debian
-  - chmod 0440 /etc/sudoers.d/debian

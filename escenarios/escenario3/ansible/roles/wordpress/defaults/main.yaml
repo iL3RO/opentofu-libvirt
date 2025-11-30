@@ -1,0 +1,10 @@
+---
+# Variables por defecto para WordPress
+
+wordpress_path: /var/www/wordpress
+
+wordpress_db_name: wordpress
+wordpress_db_user: wordpress_user
+wordpress_db_password: wordpress_pass
+
+db_host: 10.0.0.2

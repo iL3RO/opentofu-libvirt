@@ -1,0 +1,49 @@
+---
+- name: Generar inventario dinámico desde terraform.tfstate
+  hosts: localhost
+  gather_facts: no
+  vars:
+    tfstate_path: "{{ playbook_dir }}/../opentofu/terraform.tfstate"
+  tasks:
+    - name: Leer terraform.tfstate
+      slurp:
+        src: "{{ tfstate_path }}"
+      register: tfstate_raw
+
+    - name: Decodificar JSON
+      set_fact:
+        tfstate: "{{ (tfstate_raw.content | b64decode) | from_json }}"
+
+    - name: Extraer IPs de las VMs
+      set_fact:
+        ips:
+          nginx: "{{ tfstate.outputs.vms.value.apache2.ips[0] }}"
+          php-fpm: "{{ tfstate.outputs.vms.value.php-fpm.ips[0] }}"
+          mariadb: "{{ tfstate.outputs.vms.value.mariadb.ips[0] }}"
+
+    - name: Generar archivo hosts
+      copy:
+        dest: "{{ playbook_dir }}/hosts"
+        content: |
+          all:
+            children:
+              servidores_web:
+                hosts:
+                  nginx:
+                    ansible_host: {{ ips.nginx }}
+                    ansible_user: debian
+                    ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+              servidores_php:
+                hosts:
+                  php-fpm:
+                    ansible_host: {{ ips.php-fpm }}
+                    ansible_user: debian
+                    ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+              servidores_bd:
+                hosts:
+                  mariadb:
+                    ansible_host: {{ ips.mariadb }}
+                    ansible_user: ubuntu
+                    ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+                    ansible_become_password: ""
+                    ansible_sudo_pass: ""

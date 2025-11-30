@@ -1,71 +1,43 @@
-- hosts: all
+---
+# Playbook principal - Nginx + PHP-FPM + WordPress + phpMyAdmin
+
+- name: Esperar a que todos los servidores estén listos
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Esperar a que SSH esté disponible
+      wait_for_connection:
+        delay: 10
+        timeout: 300
+      
+    - name: Esperar a que cloud-init termine
+      command: cloud-init status --wait
+      changed_when: false
+      failed_when: false
+
+- name: Configuración común para todos los servidores
+  hosts: all
   become: true
   roles:
     - role: commons
 
-- hosts: servidores_web
+- name: Configurar servidor PHP-FPM con WordPress y phpMyAdmin
+  hosts: servidores_php
   become: true
   roles:
-    - role: apache2
+    - role: php-fpm
+    - role: wordpress
+    - role: phpmyadmin
 
-  tasks:
-    # ========================================
-    # INSTALACIÓN DE PHPMYADMIN
-    # ========================================
-    
-    - name: Preconfigurar phpMyAdmin para instalación desatendida
-      debconf:
-        name: phpmyadmin
-        question: "{{ item.question }}"
-        value: "{{ item.value }}"
-        vtype: "{{ item.vtype }}"
-      loop:
-        - { question: 'phpmyadmin/dbconfig-install', value: 'true', vtype: 'boolean' }
-        - { question: 'phpmyadmin/app-password-confirm', value: 'phpmyadmin', vtype: 'password' }
-        - { question: 'phpmyadmin/mysql/admin-pass', value: '', vtype: 'password' }
-        - { question: 'phpmyadmin/mysql/app-pass', value: 'phpmyadmin', vtype: 'password' }
-        - { question: 'phpmyadmin/reconfigure-webserver', value: 'apache2', vtype: 'multiselect' }
+- name: Configurar servidor web Nginx con WordPress
+  hosts: servidores_web
+  become: true
+  roles:
+    - role: wordpress
+    - role: nginx
 
-    - name: Instalar phpMyAdmin y dependencias PHP
-      apt:
-        name:
-          - phpmyadmin
-          - php-mbstring
-          - php-zip
-          - php-gd
-          - php-json
-          - php-curl
-        state: present
-        update_cache: yes
-
-    - name: Habilitar módulo PHP mbstring
-      shell: phpenmod mbstring
-      notify: restart apache2
-
-    - name: Crear enlace simbólico de phpMyAdmin en Apache
-      file:
-        src: /usr/share/phpmyadmin
-        dest: /var/www/html/phpmyadmin
-        state: link
-
-    - name: Configurar phpMyAdmin para servidor remoto
-      blockinfile:
-        path: /etc/phpmyadmin/config.inc.php
-        block: |
-          /* Servidor de base de datos remoto */
-          $cfg['Servers'][$i]['host'] = '10.0.0.2';
-          $cfg['Servers'][$i]['port'] = '3306';
-          $cfg['Servers'][$i]['AllowNoPassword'] = false;
-        marker: "/* {mark} ANSIBLE MANAGED BLOCK */"
-        insertafter: "\\$i\\+\\+;"
-
-  handlers:
-    - name: restart apache2
-      service:
-        name: apache2
-        state: restarted
-
-- hosts: servidores_bd
+- name: Configurar base de datos MariaDB
+  hosts: servidores_bd
   become: true
   roles:
     - role: mariadb

@@ -1,0 +1,3 @@
+---
+# Variables por defecto para phpMyAdmin
+phpmyadmin_db_host: 10.0.0.2
