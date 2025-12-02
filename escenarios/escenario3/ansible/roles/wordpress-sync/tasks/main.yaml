@@ -1,0 +1,48 @@
+---
+# Rol: wordpress-sync
+# Copia WordPress desde php-fpm a nginx
+
+- name: Esperar a que php-fpm tenga WordPress instalado
+  wait_for:
+    timeout: 10
+  delegate_to: localhost
+
+- name: Crear tarball de WordPress en php-fpm
+  shell: tar czf /tmp/wordpress-sync.tar.gz -C /var/www wordpress
+  delegate_to: "{{ groups['servidores_php'][0] }}"
+  become: yes
+
+- name: Descargar WordPress desde php-fpm
+  fetch:
+    src: /tmp/wordpress-sync.tar.gz
+    dest: /tmp/wordpress-sync.tar.gz
+    flat: yes
+  delegate_to: "{{ groups['servidores_php'][0] }}"
+  become: yes
+
+- name: Subir WordPress a nginx
+  copy:
+    src: /tmp/wordpress-sync.tar.gz
+    dest: /tmp/wordpress-sync.tar.gz
+
+- name: Extraer WordPress en nginx
+  unarchive:
+    src: /tmp/wordpress-sync.tar.gz
+    dest: /var/www/
+    remote_src: yes
+    owner: www-data
+    group: www-data
+
+- name: Limpiar tarball temporal
+  file:
+    path: /tmp/wordpress-sync.tar.gz
+    state: absent
+  delegate_to: "{{ groups['servidores_php'][0] }}"
+  become: yes
+
+- name: Limpiar tarball local
+  file:
+    path: /tmp/wordpress-sync.tar.gz
+    state: absent
+  delegate_to: localhost
+  become: no

@@ -1,0 +1,105 @@
+---
+- name: Desplegar WordPress sin acceso root
+  hosts: 192.168.200.161
+  become: yes
+  become_method: sudo
+  # NO especifiques -u root, deja que Ansible use el usuario por defecto
+  
+  tasks:
+    - name: Actualizar sistema
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+    
+    - name: Instalar Nginx
+      apt:
+        name: nginx
+        state: present
+    
+    - name: Instalar herramientas básicas
+      apt:
+        name:
+          - curl
+          - wget
+          - unzip
+        state: present
+    
+    - name: Crear directorio web con permisos correctos
+      file:
+        path: /var/www/html
+        state: directory
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_gid }}"
+        mode: '0755'
+    
+    - name: Descargar WordPress directamente
+      shell: |
+        cd /var/www/html
+        curl -o latest.tar.gz https://wordpress.org/latest.tar.gz
+        tar -xzvf latest.tar.gz
+        chmod -R 755 wordpress
+      args:
+        executable: /bin/bash
+    
+    - name: Configurar Nginx básico
+      copy:
+        dest: /etc/nginx/sites-available/wordpress
+        content: |
+          server {
+              listen 80 default_server;
+              listen [::]:80 default_server;
+              
+              root /var/www/html/wordpress;
+              index index.php index.html index.htm;
+              
+              server_name _;
+              
+              location / {
+                  try_files $uri $uri/ /index.php?$args;
+              }
+              
+              location ~ \.php$ {
+                  include snippets/fastcgi-php.conf;
+                  fastcgi_pass unix:/var/run/php/php-fpm.sock;
+              }
+              
+              location ~ /\.ht {
+                  deny all;
+              }
+          }
+        owner: root
+        group: root
+        mode: '0644'
+    
+    - name: Habilitar sitio
+      file:
+        src: /etc/nginx/sites-available/wordpress
+        dest: /etc/nginx/sites-enabled/default
+        state: link
+    
+    - name: Deshabilitar sitio por defecto antiguo
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      ignore_errors: yes
+    
+    - name: Probar configuración Nginx
+      command: nginx -t
+      register: nginx_test
+      changed_when: false
+    
+    - name: Reiniciar Nginx
+      service:
+        name: nginx
+        state: restarted
+      when: nginx_test.rc == 0
+    
+    - name: Crear archivo info.php
+      copy:
+        dest: /var/www/html/wordpress/info.php
+        content: "<?php phpinfo(); ?>"
+        mode: '0644'
+    
+    - name: Mostrar IP del servidor
+      debug:
+        msg: "🌐 Accede a: http://{{ ansible_default_ipv4.address }}/info.php"

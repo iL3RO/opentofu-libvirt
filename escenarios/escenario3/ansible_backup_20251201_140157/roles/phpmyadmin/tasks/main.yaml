@@ -1,0 +1,46 @@
+---
+# Rol: phpmyadmin - Instalación de phpMyAdmin
+
+- name: Instalar phpMyAdmin y dependencias
+  apt:
+    name:
+      - phpmyadmin
+      - php-mbstring
+      - php-zip
+      - php-gd
+      - php-json
+      - php-curl
+    state: present
+    update_cache: yes
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+
+- name: Configurar phpMyAdmin
+  template:
+    src: config.inc.php.j2
+    dest: /etc/phpmyadmin/config.inc.php
+    owner: root
+    group: www-data
+    mode: '0640'
+
+- name: Eliminar directorio /var/www/phpmyadmin si existe
+  file:
+    path: /var/www/phpmyadmin
+    state: absent
+
+- name: Crear enlace simbólico de phpMyAdmin
+  file:
+    src: /usr/share/phpmyadmin
+    dest: /var/www/phpmyadmin
+    state: link
+    owner: www-data
+    group: www-data
+    force: yes
+
+- name: Establecer permisos en phpMyAdmin
+  file:
+    path: /usr/share/phpmyadmin
+    owner: www-data
+    group: www-data
+    recurse: yes
+    state: directory

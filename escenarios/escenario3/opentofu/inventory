@@ -1,0 +1,16 @@
+[mariadb]
+192.168.200.85
+
+[php-fpm]
+192.168.200.193
+
+[web]
+192.168.200.161
+
+[all:vars]
+# Probablemente los VMs creados con libvirt usan 'debian' o 'ubuntu'
+ansible_user=debian
+ansible_become=yes
+ansible_become_method=sudo
+ansible_become_pass=  # Si tiene contraseña sudo, ponla aquí
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'

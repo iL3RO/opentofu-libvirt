@@ -1,0 +1,44 @@
+---
+# Playbook principal - Nginx + PHP-FPM + WordPress + phpMyAdmin
+
+- name: Esperar a que todos los servidores estén listos
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Esperar a que SSH esté disponible
+      wait_for_connection:
+        delay: 10
+        timeout: 300
+      
+    - name: Esperar a que cloud-init termine
+      command: cloud-init status --wait
+      changed_when: false
+      failed_when: false
+
+- name: Configuración común para todos los servidores
+  hosts: all
+  become: true
+  roles:
+    - role: commons
+
+- name: Configurar servidor PHP-FPM con WordPress y phpMyAdmin
+  hosts: servidores_php
+  become: true
+  roles:
+    - role: php-fpm
+    - role: wordpress
+    - role: phpmyadmin
+
+- name: Configurar servidor web Nginx con WordPress y phpMyAdmin
+  hosts: servidores_web
+  become: true
+  roles:
+    - role: wordpress
+    - role: phpmyadmin
+    - role: nginx
+
+- name: Configurar base de datos MariaDB
+  hosts: servidores_bd
+  become: true
+  roles:
+    - role: mariadb

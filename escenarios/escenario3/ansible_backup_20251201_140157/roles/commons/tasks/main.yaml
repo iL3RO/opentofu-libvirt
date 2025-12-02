@@ -1,0 +1,16 @@
+---
+- name: Actualizar sistema
+  apt:
+    update_cache: yes
+    upgrade: dist
+    cache_valid_time: 3600
+
+- name: Instalar paquetes básicos
+  apt:
+    name:
+      - python3
+      - python3-apt
+      - curl
+      - wget
+      - git
+    state: present

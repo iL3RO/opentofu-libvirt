@@ -1,0 +1,155 @@
+---
+- name: Arreglar configuración completa
+  hosts: all
+  become: yes
+  tasks:
+    - name: Detener servicios
+      service:
+        name: "{{ item }}"
+        state: stopped
+      loop:
+        - nginx
+        - php8.4-fpm
+
+    - name: Crear directorios necesarios
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+      loop:
+        - /var/www/html/wordpress
+        - /var/www/html/phpmyadmin
+
+    - name: Crear archivo de prueba PHP
+      copy:
+        dest: /var/www/html/test.php
+        content: |
+          <?php
+          echo "<h1>PHP funciona!</h1>";
+          echo "<p>Servidor: " . gethostname() . "</p>";
+          echo "<p>PHP Version: " . phpversion() . "</p>";
+          
+          // Probar conexión MySQL
+          $mysqli = new mysqli('localhost', 'wordpress_user', 'wordpress_pass', 'wordpress');
+          if ($mysqli->connect_error) {
+              echo "<p>MySQL Error: " . $mysqli->connect_error . "</p>";
+          } else {
+              echo "<p>MySQL Conexión: OK</p>";
+          }
+          ?>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: Configurar Nginx para WordPress
+      copy:
+        dest: /etc/nginx/sites-available/wordpress
+        content: |
+          server {
+              listen 80;
+              server_name www.example.org;
+              root /var/www/html/wordpress;
+              index index.php index.html index.htm;
+
+              access_log /var/log/nginx/wordpress_access.log;
+              error_log /var/log/nginx/wordpress_error.log;
+
+              location / {
+                  try_files $uri $uri/ /index.php?$args;
+              }
+
+              location ~ \.php$ {
+                  include snippets/fastcgi-php.conf;
+                  fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                  include fastcgi_params;
+              }
+
+              location ~ /\.ht {
+                  deny all;
+              }
+          }
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Habilitar sitio WordPress
+      file:
+        src: /etc/nginx/sites-available/wordpress
+        dest: /etc/nginx/sites-enabled/wordpress
+        state: link
+
+    - name: Eliminar sitio por defecto
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Descargar WordPress
+      get_url:
+        url: https://wordpress.org/latest.tar.gz
+        dest: /tmp/wordpress.tar.gz
+
+    - name: Extraer WordPress
+      unarchive:
+        src: /tmp/wordpress.tar.gz
+        dest: /var/www/html/
+        remote_src: yes
+        creates: /var/www/html/wordpress/index.php
+
+    - name: Configurar permisos de WordPress
+      file:
+        path: /var/www/html/wordpress
+        owner: www-data
+        group: www-data
+        mode: '0755'
+        recurse: yes
+
+    - name: Crear wp-config.php básico
+      copy:
+        dest: /var/www/html/wordpress/wp-config.php
+        content: |
+          <?php
+          define('DB_NAME', 'wordpress');
+          define('DB_USER', 'wordpress_user');
+          define('DB_PASSWORD', 'wordpress_pass');
+          define('DB_HOST', 'localhost');
+          define('DB_CHARSET', 'utf8mb4');
+          define('DB_COLLATE', '');
+          
+          $table_prefix = 'wp_';
+          
+          define('WP_DEBUG', false);
+          
+          if ( !defined('ABSPATH') )
+              define('ABSPATH', dirname(__FILE__) . '/');
+          
+          require_once(ABSPATH . 'wp-settings.php');
+          ?>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: Probar configuración Nginx
+      command: nginx -t
+      register: nginx_test
+      changed_when: false
+
+    - name: Iniciar servicios
+      service:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - php8.4-fpm
+        - nginx
+      when: nginx_test.rc == 0
+
+    - name: Mostrar información
+      debug:
+        msg: |
+          ✅ Configuración completada
+          🌐 Accede a: http://www.example.org
+          🧪 Prueba PHP: http://www.example.org/test.php
+          🔧 Si hay errores, revisa: sudo tail -f /var/log/nginx/error.log

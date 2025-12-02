@@ -1,0 +1,55 @@
+---
+- name: Diagnosticar servidor web
+  hosts: 192.168.200.161
+  become: yes
+  
+  tasks:
+    - name: Verificar Nginx
+      command: nginx -t
+      register: nginx_test
+      changed_when: false
+    
+    - name: Mostrar test Nginx
+      debug:
+        msg: "Nginx test: {{ nginx_test.stdout_lines }} {{ nginx_test.stderr_lines }}"
+    
+    - name: Ver configuración Nginx
+      shell: |
+        cat /etc/nginx/sites-enabled/*
+      register: nginx_config
+      changed_when: false
+    
+    - name: Mostrar configuración
+      debug:
+        msg: "Config Nginx: {{ nginx_config.stdout }}"
+    
+    - name: Ver directorio web
+      shell: |
+        ls -la /var/www/html/
+        ls -la /var/www/html/wordpress/ 2>/dev/null || echo "No existe wordpress"
+      register: web_dir
+      changed_when: false
+    
+    - name: Mostrar directorio
+      debug:
+        msg: "Directorio web: {{ web_dir.stdout }}"
+    
+    - name: Ver logs de error
+      shell: |
+        tail -20 /var/log/nginx/error.log
+      register: nginx_errors
+      changed_when: false
+    
+    - name: Mostrar errores
+      debug:
+        msg: "Errores Nginx: {{ nginx_errors.stdout_lines }}"
+    
+    - name: Verificar PHP-FPM
+      shell: |
+        systemctl status php8.4-fpm 2>/dev/null || echo "PHP-FPM no instalado"
+      register: php_status
+      changed_when: false
+    
+    - name: Mostrar estado PHP
+      debug:
+        msg: "PHP Status: {{ php_status.stdout }}"

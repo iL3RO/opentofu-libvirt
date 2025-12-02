@@ -1,0 +1,28 @@
+server {
+    listen 80;
+    server_name phpmyadmin.example.org;
+    root /usr/share/phpmyadmin;
+    index index.php;
+
+    access_log /var/log/nginx/phpmyadmin_access.log;
+    error_log /var/log/nginx/phpmyadmin_error.log;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    location ~ ^/(doc|sql|setup)/ {
+        deny all;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}

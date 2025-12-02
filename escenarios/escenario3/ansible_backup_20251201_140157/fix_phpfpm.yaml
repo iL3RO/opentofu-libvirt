@@ -1,0 +1,26 @@
+---
+- name: Reconfigurar PHP-FPM
+  hosts: servidores_php
+  become: true
+  tasks:
+    - name: Detectar versión de PHP
+      shell: php -v | head -1 | cut -d' ' -f2 | cut -d'.' -f1,2
+      register: php_version_output
+      changed_when: false
+
+    - name: Guardar versión de PHP
+      set_fact:
+        php_version: "{{ php_version_output.stdout }}"
+
+    - name: Configurar pool de PHP-FPM
+      template:
+        src: roles/php-fpm/templates/www.conf.j2
+        dest: "/etc/php/{{ php_version }}/fpm/pool.d/www.conf"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Reiniciar PHP-FPM
+      systemd:
+        name: "php{{ php_version }}-fpm"
+        state: restarted

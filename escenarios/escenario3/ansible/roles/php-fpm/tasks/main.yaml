@@ -1,108 +1,35 @@
 ---
-# Rol: php-fpm - Instalación y configuración
-
-- name: Instalar PHP-FPM y extensiones necesarias
+- name: Instalar PHP-FPM
   apt:
     name:
       - php-fpm
       - php-mysql
+      - php-curl
+      - php-gd
       - php-mbstring
       - php-xml
-      - php-gd
-      - php-curl
       - php-zip
+      - php-json
     state: present
     update_cache: yes
 
-- name: Detectar versión de PHP instalada
-  shell: php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;'
-  register: php_version
+- name: Detectar versión de PHP
+  shell: php -v | head -1 | cut -d' ' -f2 | cut -d'.' -f1,2
+  register: php_version_output
   changed_when: false
 
-- name: Guardar versión de PHP como variable
+- name: Guardar versión de PHP
   set_fact:
-    php_version_detected: "{{ php_version.stdout }}"
+    php_version: "{{ php_version_output.stdout }}"
 
-- name: Mostrar versión de PHP detectada
-  debug:
-    msg: "PHP versión detectada: {{ php_version_detected }}"
-
-- name: Configurar PHP-FPM (upload_max_filesize)
-  lineinfile:
-    path: "/etc/php/{{ php_version_detected }}/fpm/php.ini"
-    regexp: '^upload_max_filesize'
-    line: 'upload_max_filesize = 64M'
-  notify: restart php-fpm
-
-- name: Configurar PHP-FPM (post_max_size)
-  lineinfile:
-    path: "/etc/php/{{ php_version_detected }}/fpm/php.ini"
-    regexp: '^post_max_size'
-    line: 'post_max_size = 64M'
-  notify: restart php-fpm
-
-- name: Configurar PHP-FPM (memory_limit)
-  lineinfile:
-    path: "/etc/php/{{ php_version_detected }}/fpm/php.ini"
-    regexp: '^memory_limit'
-    line: 'memory_limit = 256M'
-  notify: restart php-fpm
-
-- name: Configurar PHP-FPM (max_execution_time)
-  lineinfile:
-    path: "/etc/php/{{ php_version_detected }}/fpm/php.ini"
-    regexp: '^max_execution_time'
-    line: 'max_execution_time = 300'
-  notify: restart php-fpm
-
-- name: Configurar pool de PHP-FPM
+- name: Configurar PHP-FPM
   template:
     src: www.conf.j2
-    dest: "/etc/php/{{ php_version_detected }}/fpm/pool.d/www.conf"
-    owner: root
-    group: root
-    mode: '0644'
+    dest: "/etc/php/{{ php_version }}/fpm/pool.d/www.conf"
   notify: restart php-fpm
 
-- name: Asegurar que PHP-FPM está habilitado y corriendo
+- name: Iniciar PHP-FPM
   systemd:
-    name: "php{{ php_version_detected }}-fpm"
-    enabled: yes
+    name: "php{{ php_version }}-fpm"
     state: started
-
-- name: Instalar nginx en servidor PHP-FPM para archivos estáticos
-  apt:
-    name: nginx-light
-    state: present
-
-- name: Configurar nginx para servir archivos estáticos de phpMyAdmin
-  copy:
-    content: |
-      server {
-          listen 8080;
-          root /var/www/wordpress;
-          location / {
-              try_files $uri =404;
-          }
-      }
-    dest: /etc/nginx/sites-available/static
-    owner: root
-    group: root
-    mode: '0644'
-
-- name: Activar configuración nginx estáticos
-  file:
-    src: /etc/nginx/sites-available/static
-    dest: /etc/nginx/sites-enabled/static
-    state: link
-
-- name: Eliminar default de nginx
-  file:
-    path: /etc/nginx/sites-enabled/default
-    state: absent
-
-- name: Reiniciar nginx en PHP-FPM
-  service:
-    name: nginx
-    state: restarted
     enabled: yes

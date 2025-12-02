@@ -1,3 +1,6 @@
 ---
-# Variables por defecto para phpMyAdmin
-phpmyadmin_db_host: 10.0.0.2
+phpmyadmin_path: "/var/www/phpmyadmin"
+phpmyadmin_version: "5.2.1"
+phpmyadmin_download_url: "https://files.phpmyadmin.net/phpMyAdmin/{{ phpmyadmin_version }}/phpMyAdmin-{{ phpmyadmin_version }}-all-languages.tar.gz"
+phpmyadmin_db_host: "10.0.0.2"
+phpmyadmin_domain: "phpmyadmin.example.org"

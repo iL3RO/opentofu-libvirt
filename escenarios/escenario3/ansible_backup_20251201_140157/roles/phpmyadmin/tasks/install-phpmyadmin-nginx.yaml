@@ -1,0 +1,48 @@
+---
+# Instalar phpMyAdmin en servidor Nginx
+
+- name: Descargar phpMyAdmin
+  get_url:
+    url: https://files.phpmyadmin.net/phpMyAdmin/5.2.1/phpMyAdmin-5.2.1-all-languages.tar.gz
+    dest: /tmp/phpmyadmin.tar.gz
+    mode: '0644'
+
+- name: Extraer phpMyAdmin
+  unarchive:
+    src: /tmp/phpmyadmin.tar.gz
+    dest: /tmp/
+    copy: no
+    creates: /tmp/phpMyAdmin-5.2.1-all-languages
+
+- name: Crear directorio para phpMyAdmin
+  file:
+    path: /var/www/phpmyadmin
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Copiar archivos de phpMyAdmin al directorio web
+  copy:
+    src: /tmp/phpMyAdmin-5.2.1-all-languages/
+    dest: /var/www/phpmyadmin
+    remote_src: yes
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Crear archivo de configuración para phpMyAdmin
+  template:
+    src: config.inc.php.j2
+    dest: /var/www/phpmyadmin/config.inc.php
+    owner: www-data
+    group: www-data
+    mode: '0640'
+
+- name: Limpiar archivos temporales
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/phpmyadmin.tar.gz
+    - /tmp/phpMyAdmin-5.2.1-all-languages

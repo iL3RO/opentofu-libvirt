@@ -1,0 +1,6 @@
+---
+- name: Reconfigurar MariaDB
+  hosts: servidores_bd
+  become: true
+  roles:
+    - mariadb

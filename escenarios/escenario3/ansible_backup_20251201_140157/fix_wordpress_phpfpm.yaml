@@ -1,0 +1,6 @@
+---
+- name: Reinstalar WordPress en servidor PHP-FPM
+  hosts: servidores_php
+  become: true
+  roles:
+    - role: wordpress

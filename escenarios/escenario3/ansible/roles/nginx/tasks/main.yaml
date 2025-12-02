@@ -1,32 +1,26 @@
 ---
-# Rol: nginx - Instalación y configuración de Nginx
+- name: Detener y deshabilitar Apache2 si existe
+  systemd:
+    name: apache2
+    state: stopped
+    enabled: no
+  failed_when: false
+  ignore_errors: yes
 
 - name: Instalar Nginx
   apt:
     name: nginx
     state: present
-    update_cache: yes
 
-- name: Crear directorios para logs
-  file:
-    path: /var/log/nginx
-    state: directory
-    owner: www-data
-    group: adm
-    mode: '0755'
-
-- name: Eliminar configuración por defecto de Nginx
+- name: Eliminar default
   file:
     path: /etc/nginx/sites-enabled/default
     state: absent
 
-- name: Crear configuraciones de virtualhosts
+- name: Crear virtualhosts
   template:
     src: vhost.j2
     dest: "/etc/nginx/sites-available/{{ item.name }}.conf"
-    owner: root
-    group: root
-    mode: '0644'
   loop: "{{ virtualhosts }}"
   notify: reload nginx
 
@@ -38,12 +32,8 @@
   loop: "{{ virtualhosts }}"
   notify: reload nginx
 
-- name: Verificar configuración de Nginx
-  command: nginx -t
-  changed_when: false
-
-- name: Asegurar que Nginx está iniciado y habilitado
-  service:
+- name: Iniciar Nginx
+  systemd:
     name: nginx
     state: started
     enabled: yes

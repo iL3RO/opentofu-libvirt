@@ -1,0 +1,189 @@
+---
+- name: Solucionar error 403 Forbidden
+  hosts: 192.168.200.161
+  become: yes
+  
+  tasks:
+    - name: Parar Nginx temporalmente
+      service:
+        name: nginx
+        state: stopped
+    
+    - name: Limpiar configuraciones viejas
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/nginx/sites-enabled/default
+        - /etc/nginx/sites-enabled/wordpress
+        - /etc/nginx/sites-available/wordpress
+    
+    - name: Crear directorio WordPress
+      file:
+        path: /var/www/html/wordpress
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+    
+    - name: Descargar WordPress
+      get_url:
+        url: https://wordpress.org/latest.tar.gz
+        dest: /tmp/wordpress-latest.tar.gz
+    
+    - name: Extraer WordPress
+      unarchive:
+        src: /tmp/wordpress-latest.tar.gz
+        dest: /var/www/html/
+        remote_src: yes
+        creates: /var/www/html/wordpress/wp-config-sample.php
+    
+    - name: Configurar permisos WordPress
+      file:
+        path: /var/www/html/wordpress
+        owner: www-data
+        group: www-data
+        mode: '0755'
+        recurse: yes
+    
+    - name: Crear wp-config.php básico
+      copy:
+        dest: /var/www/html/wordpress/wp-config.php
+        content: |
+          <?php
+          // ** Configuración de MySQL ** //
+          define('DB_NAME', 'wordpress');
+          define('DB_USER', 'wordpress_user');
+          define('DB_PASSWORD', 'wordpress_pass');
+          define('DB_HOST', '192.168.200.85');
+          define('DB_CHARSET', 'utf8mb4');
+          define('DB_COLLATE', '');
+          
+          // ** Tabla de la base de datos ** //
+          $table_prefix = 'wp_';
+          
+          // ** Para developers ** //
+          define('WP_DEBUG', true);
+          
+          // ** Configuración segura ** //
+          define('FORCE_SSL_ADMIN', false);
+          
+          // ** Ruta absoluta ** //
+          if (!defined('ABSPATH')) {
+              define('ABSPATH', __DIR__ . '/');
+          }
+          
+          require_once ABSPATH . 'wp-settings.php';
+          ?>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+    
+    - name: Crear configuración Nginx simple
+      copy:
+        dest: /etc/nginx/sites-available/wordpress
+        content: |
+          server {
+              listen 80;
+              server_name _;
+              
+              root /var/www/html/wordpress;
+              index index.php index.html index.htm;
+              
+              # Logs
+              access_log /var/log/nginx/wordpress_access.log;
+              error_log /var/log/nginx/wordpress_error.log;
+              
+              # Configuración principal
+              location / {
+                  try_files $uri $uri/ /index.php?$args;
+              }
+              
+              # PHP handling
+              location ~ \.php$ {
+                  include snippets/fastcgi-php.conf;
+                  fastcgi_pass 192.168.200.193:9000;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                  include fastcgi_params;
+                  
+                  # Headers de seguridad
+                  add_header X-Frame-Options "SAMEORIGIN" always;
+                  add_header X-Content-Type-Options "nosniff" always;
+                  add_header X-XSS-Protection "1; mode=block" always;
+              }
+              
+              # Denegar acceso a archivos ocultos
+              location ~ /\. {
+                  deny all;
+                  access_log off;
+                  log_not_found off;
+              }
+              
+              # Denegar acceso a archivos sensibles
+              location ~* (?:readme\.html|license\.txt|wp-config\.php|error_log) {
+                  deny all;
+              }
+          }
+        owner: root
+        group: root
+        mode: '0644'
+    
+    - name: Habilitar sitio WordPress
+      file:
+        src: /etc/nginx/sites-available/wordpress
+        dest: /etc/nginx/sites-enabled/wordpress
+        state: link
+    
+    - name: Crear archivo de prueba PHP
+      copy:
+        dest: /var/www/html/wordpress/test.php
+        content: |
+          <?php
+          echo "<h1>✅ WordPress está funcionando!</h1>";
+          echo "<p>Servidor: " . gethostname() . "</p>";
+          echo "<p>IP: " . $_SERVER['SERVER_ADDR'] . "</p>";
+          echo "<p>PHP Version: " . phpversion() . "</p>";
+          echo "<p>Directorio: " . __DIR__ . "</p>";
+          
+          // Probar conexión a MySQL
+          $conn = @mysqli_connect('192.168.200.85', 'wordpress_user', 'wordpress_pass', 'wordpress');
+          if ($conn) {
+              echo "<p style='color:green;'>✅ Conexión MySQL: OK</p>";
+              mysqli_close($conn);
+          } else {
+              echo "<p style='color:red;'>❌ MySQL Error: " . mysqli_connect_error() . "</p>";
+          }
+          ?>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+    
+    - name: Verificar configuración Nginx
+      command: nginx -t
+      register: nginx_test
+      changed_when: false
+    
+    - name: Iniciar Nginx
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+      when: nginx_test.rc == 0
+    
+    - name: Mostrar información de acceso
+      debug:
+        msg: |
+          🎉 CONFIGURACIÓN COMPLETADA
+          
+          🌐 Acceso a WordPress:
+          URL: http://192.168.200.161/
+          Test: http://192.168.200.161/test.php
+          
+          🔧 Si hay problemas:
+          1. Ver logs: tail -f /var/log/nginx/error.log
+          2. Verificar PHP-FPM: systemctl status php8.4-fpm
+          3. Verificar MySQL: mysql -h 192.168.200.85 -u wordpress_user -p
+          
+          📋 Comandos útiles:
+          sudo systemctl restart nginx
+          sudo systemctl restart php8.4-fpm

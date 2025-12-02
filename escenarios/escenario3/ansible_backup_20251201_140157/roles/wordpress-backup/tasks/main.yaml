@@ -1,0 +1,21 @@
+---
+# Backup de WordPress
+
+- name: Crear directorio de backups
+  file:
+    path: /var/backups/wordpress
+    state: directory
+    mode: '0755'
+
+- name: Backup de la base de datos WordPress
+  mysql_db:
+    name: "{{ wordpress_db_name }}"
+    state: dump
+    target: /var/backups/wordpress/wordpress-backup.sql
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+
+- name: Descargar backup al host local
+  fetch:
+    src: /var/backups/wordpress/wordpress-backup.sql
+    dest: ~/backups/wordpress-backup.sql
+    flat: yes

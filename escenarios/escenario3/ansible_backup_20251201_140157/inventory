@@ -1,0 +1,12 @@
+[mariadb]
+192.168.200.252
+
+[php-fpm]
+192.168.200.224
+
+[nginx]
+192.168.200.136
+
+[all:vars]
+ansible_user=debian
+ansible_become=yes

@@ -1,10 +1,9 @@
 ---
 # Variables globales
 
-# IPs de los servidores
-nginx_ip: 192.168.200.28
-phpfpm_ip: 192.168.200.33
+# Configuración de red interna
 db_host: 10.0.0.2
+php_fpm_host: 10.0.0.3
 
 # WordPress
 wordpress_path: /var/www/wordpress
@@ -13,19 +12,16 @@ wordpress_db_user: wordpress_user
 wordpress_db_password: wordpress_pass
 
 # phpMyAdmin
+phpmyadmin_path: /var/www/phpmyadmin
 phpmyadmin_db_host: 10.0.0.2
 
-# Configuración nginx
+# VirtualHosts nginx
 virtualhosts:
   - name: wordpress
     datos:
       nameserver: www.example.org
       documentroot: /var/www/wordpress
-      errorlog: error_wordpress
-      accesslog: access_wordpress
   - name: phpmyadmin
     datos:
       nameserver: phpmyadmin.example.org
       documentroot: /var/www/phpmyadmin
-      errorlog: error_phpmyadmin
-      accesslog: access_phpmyadmin

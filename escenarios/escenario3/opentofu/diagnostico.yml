@@ -1,0 +1,31 @@
+---
+- name: Diagnóstico completo
+  hosts: all
+  gather_facts: yes
+  
+  tasks:
+    - name: Mostrar información del host
+      debug:
+        msg: |
+          🖥️  Host: {{ inventory_hostname }}
+          📍 IP: {{ ansible_default_ipv4.address }}
+          👤 Usuario: {{ ansible_user_id }}
+          🐧 OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          🏷️  Hostname: {{ ansible_hostname }}
+    
+    - name: Verificar servicios
+      shell: |
+        echo "=== Servicios ==="
+        systemctl list-units --type=service --state=running | grep -E "(nginx|apache|mariadb|mysql|php)" || echo "No hay servicios web/db corriendo"
+        
+        echo "=== Puertos abiertos ==="
+        ss -tlnp | grep -E ":80|:3306|:9000" || echo "No hay puertos web/db abiertos"
+        
+        echo "=== Directorio web ==="
+        ls -la /var/www/html/ 2>/dev/null || echo "No existe /var/www/html"
+      register: servicios
+      changed_when: false
+    
+    - name: Mostrar servicios
+      debug:
+        msg: "{{ servicios.stdout_lines }}"

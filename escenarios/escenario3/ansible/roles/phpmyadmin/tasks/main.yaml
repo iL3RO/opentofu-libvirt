@@ -1,46 +1,69 @@
 ---
-# Rol: phpmyadmin - Instalación de phpMyAdmin
-
-- name: Instalar phpMyAdmin y dependencias
+- name: Instalar dependencias de phpMyAdmin
   apt:
     name:
-      - phpmyadmin
       - php-mbstring
       - php-zip
       - php-gd
       - php-json
       - php-curl
+      - unzip
+      - wget
     state: present
     update_cache: yes
-  environment:
-    DEBIAN_FRONTEND: noninteractive
 
-- name: Configurar phpMyAdmin
-  template:
-    src: config.inc.php.j2
-    dest: /etc/phpmyadmin/config.inc.php
-    owner: root
-    group: www-data
-    mode: '0640'
+- name: Descargar phpMyAdmin
+  get_url:
+    url: "{{ phpmyadmin_download_url }}"
+    dest: "/tmp/phpmyadmin.tar.gz"
+    timeout: 60
 
-- name: Eliminar directorio /var/www/phpmyadmin si existe
+- name: Crear directorio para phpMyAdmin
   file:
-    path: /var/www/phpmyadmin
-    state: absent
-
-- name: Crear enlace simbólico de phpMyAdmin
-  file:
-    src: /usr/share/phpmyadmin
-    dest: /var/www/phpmyadmin
-    state: link
+    path: "{{ phpmyadmin_path }}"
+    state: directory
     owner: www-data
     group: www-data
-    force: yes
+    mode: '0755'
 
-- name: Establecer permisos en phpMyAdmin
+- name: Extraer phpMyAdmin
+  unarchive:
+    src: "/tmp/phpmyadmin.tar.gz"
+    dest: "/tmp/"
+    remote_src: yes
+
+- name: Copiar archivos de phpMyAdmin
+  shell: "cp -r /tmp/phpMyAdmin-{{ phpmyadmin_version }}-all-languages/* {{ phpmyadmin_path }}/"
+  args:
+    creates: "{{ phpmyadmin_path }}/index.php"
+
+- name: Crear directorio tmp
   file:
-    path: /usr/share/phpmyadmin
+    path: "{{ phpmyadmin_path }}/tmp"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0770'
+
+- name: Establecer permisos
+  file:
+    path: "{{ phpmyadmin_path }}"
     owner: www-data
     group: www-data
     recurse: yes
-    state: directory
+
+- name: Crear config.inc.php
+  template:
+    src: config.inc.php.j2
+    dest: "{{ phpmyadmin_path }}/config.inc.php"
+    owner: www-data
+    group: www-data
+    mode: '0644'
+
+- name: Limpiar temporales
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/phpmyadmin.tar.gz"
+    - "/tmp/phpMyAdmin-{{ phpmyadmin_version }}-all-languages"

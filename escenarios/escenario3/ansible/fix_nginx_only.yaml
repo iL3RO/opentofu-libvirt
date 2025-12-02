@@ -1,0 +1,28 @@
+---
+- name: Reconfigurar Nginx
+  hosts: servidores_web
+  become: true
+  tasks:
+    - name: Eliminar configuraciones antiguas
+      shell: rm -f /etc/nginx/sites-enabled/*.conf /etc/nginx/sites-available/wordpress.conf /etc/nginx/sites-available/phpmyadmin.conf
+
+    - name: Crear virtualhosts
+      template:
+        src: roles/nginx/templates/vhost.j2
+        dest: "/etc/nginx/sites-available/{{ item.name }}.conf"
+      loop: "{{ virtualhosts }}"
+
+    - name: Habilitar virtualhosts
+      file:
+        src: "/etc/nginx/sites-available/{{ item.name }}.conf"
+        dest: "/etc/nginx/sites-enabled/{{ item.name }}.conf"
+        state: link
+      loop: "{{ virtualhosts }}"
+
+    - name: Verificar configuración
+      command: nginx -t
+
+    - name: Reiniciar Nginx
+      systemd:
+        name: nginx
+        state: restarted

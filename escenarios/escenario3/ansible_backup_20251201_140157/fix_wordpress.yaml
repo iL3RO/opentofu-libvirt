@@ -1,0 +1,6 @@
+---
+- name: Reinstalar WordPress en servidor Nginx
+  hosts: servidores_web
+  become: true
+  roles:
+    - role: wordpress

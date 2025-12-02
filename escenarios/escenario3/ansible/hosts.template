@@ -1,0 +1,25 @@
+all:
+  children:
+    servidores_web:
+      hosts:
+        nginx:
+          ansible_host: NGINX_IP
+          ansible_user: debian
+          ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+    
+    servidores_php:
+      hosts:
+        php-fpm:
+          ansible_host: PHPFPM_IP
+          ansible_user: debian
+          ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+    
+    servidores_bd:
+      hosts:
+        mariadb:
+          ansible_host: MARIADB_IP
+          ansible_user: debian
+          ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+  
+  vars:
+    ansible_python_interpreter: /usr/bin/python3

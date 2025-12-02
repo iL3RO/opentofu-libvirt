@@ -1,0 +1,20 @@
+---
+- name: Verificar usuarios disponibles
+  hosts: all
+  tasks:
+    - name: Ver usuario actual
+      command: whoami
+      register: whoami
+    
+    - name: Mostrar usuario
+      debug:
+        msg: "Usuario: {{ whoami.stdout }}"
+    
+    - name: Verificar si puede usar sudo
+      command: sudo whoami
+      register: sudo_check
+      ignore_errors: yes
+    
+    - name: Mostrar sudo
+      debug:
+        msg: "Sudo: {{ 'SÍ funciona' if sudo_check.rc == 0 else 'NO funciona' }}"

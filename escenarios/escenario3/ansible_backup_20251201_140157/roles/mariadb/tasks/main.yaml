@@ -1,0 +1,65 @@
+---
+- name: Instalar MariaDB
+  apt:
+    name: mariadb-server
+    state: present
+
+- name: Habilitar y iniciar MariaDB
+  service:
+    name: mariadb
+    state: started
+    enabled: yes
+
+- name: Configurar MariaDB para escuchar en todas las interfaces
+  lineinfile:
+    path: /etc/mysql/mariadb.conf.d/50-server.cnf
+    regexp: '^bind-address\s*='
+    line: 'bind-address = 0.0.0.0'
+    backup: yes
+
+- name: Reiniciar MariaDB para aplicar cambios
+  service:
+    name: mariadb
+    state: restarted
+
+- name: Instalar módulos Python para MySQL
+  apt:
+    name: python3-pymysql
+    state: present
+  register: pymysql_result
+  ignore_errors: yes
+
+- name: Instalar alternativa si falla PyMySQL
+  apt:
+    name: python3-mysqldb
+    state: present
+  when: pymysql_result is failed
+
+- name: Configurar acceso root sin contraseña
+  shell: |
+    mysql -u root <<'MYSQL_EOF'
+    ALTER USER 'root'@'localhost' IDENTIFIED BY '';
+    FLUSH PRIVILEGES;
+    MYSQL_EOF
+  args:
+    executable: /bin/bash
+  register: root_config
+  changed_when: "'0 rows affected' not in root_config.stdout"
+
+- name: Crear base de datos WordPress
+  shell: |
+    mysql -u root <<'MYSQL_EOF'
+    CREATE DATABASE IF NOT EXISTS wordpress CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE USER IF NOT EXISTS 'wordpress_user'@'%' IDENTIFIED BY 'wordpress_pass';
+    GRANT ALL PRIVILEGES ON wordpress.* TO 'wordpress_user'@'%';
+    FLUSH PRIVILEGES;
+    MYSQL_EOF
+  args:
+    executable: /bin/bash
+  register: db_creation
+  changed_when: "'already exists' not in db_creation.stdout"
+
+- name: Verificar creación de base de datos
+  debug:
+    msg: "✅ Base de datos WordPress creada exitosamente"
+  when: db_creation is succeeded

@@ -1,0 +1,15 @@
+---
+# Variables por defecto para el rol nginx
+
+base_web_path: /var/www/html
+
+virtualhosts:
+  - name: default
+    datos:
+      servername: localhost
+      documentroot: /var/www/html
+
+db_host: 10.0.0.2
+guestbook_db_name: guestbook
+guestbook_db_user: guestbook_user
+guestbook_db_password: guestbook_pass

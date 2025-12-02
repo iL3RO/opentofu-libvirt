@@ -1,0 +1,12 @@
+---
+# Handlers para PHP-FPM
+
+- name: restart php-fpm
+  systemd:
+    name: "php{{ php_version_detected }}-fpm"
+    state: restarted
+
+- name: reload php-fpm
+  systemd:
+    name: "php{{ php_version_detected }}-fpm"
+    state: reloaded

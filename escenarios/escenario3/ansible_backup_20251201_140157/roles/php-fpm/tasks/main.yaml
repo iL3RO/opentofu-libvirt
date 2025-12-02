@@ -1,0 +1,34 @@
+---
+- name: Instalar PHP-FPM y extensiones necesarias
+  apt:
+    name:
+      - php8.4-fpm=8.4.11-1
+      - php8.4-mysql=8.4.11-1
+      - php8.4-curl=8.4.11-1
+      - php8.4-gd=8.4.11-1
+      - php8.4-mbstring=8.4.11-1
+      - php8.4-xml=8.4.11-1
+      - php8.4-zip=8.4.11-1
+    state: present
+
+- name: Verificar instalación de PHP
+  command: php8.4 --version
+  register: php_version
+  changed_when: false
+
+- name: Mostrar versión de PHP instalada
+  debug:
+    msg: "PHP {{ php_version.stdout_lines[0] }} instalado correctamente"
+
+- name: Configurar PHP-FPM para escuchar en socket
+  template:
+    src: www.conf.j2
+    dest: /etc/php/8.4/fpm/pool.d/www.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Reiniciar PHP-FPM
+  service:
+    name: php8.4-fpm
+    state: restarted

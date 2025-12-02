@@ -1,0 +1,42 @@
+---
+# Sincronizar phpMyAdmin de php-fpm a nginx
+
+- name: Crear tarball de phpMyAdmin en php-fpm
+  shell: tar czf /tmp/phpmyadmin-sync.tar.gz -C /var/www phpmyadmin
+  delegate_to: "{{ groups['servidores_php'][0] }}"
+  become: yes
+
+- name: Descargar phpMyAdmin desde php-fpm
+  fetch:
+    src: /tmp/phpmyadmin-sync.tar.gz
+    dest: /tmp/phpmyadmin-sync.tar.gz
+    flat: yes
+  delegate_to: "{{ groups['servidores_php'][0] }}"
+  become: yes
+
+- name: Subir phpMyAdmin a nginx
+  copy:
+    src: /tmp/phpmyadmin-sync.tar.gz
+    dest: /tmp/phpmyadmin-sync.tar.gz
+
+- name: Extraer phpMyAdmin en nginx
+  unarchive:
+    src: /tmp/phpmyadmin-sync.tar.gz
+    dest: /var/www/
+    remote_src: yes
+    owner: www-data
+    group: www-data
+
+- name: Limpiar tarball en php-fpm
+  file:
+    path: /tmp/phpmyadmin-sync.tar.gz
+    state: absent
+  delegate_to: "{{ groups['servidores_php'][0] }}"
+  become: yes
+
+- name: Limpiar tarball local
+  file:
+    path: /tmp/phpmyadmin-sync.tar.gz
+    state: absent
+  delegate_to: localhost
+  become: no

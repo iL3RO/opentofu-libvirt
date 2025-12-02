@@ -1,35 +1,8 @@
 ---
-# Rol: wordpress - Instalación de WordPress
-
-- name: Instalar dependencias para WordPress
-  apt:
-    name:
-      - wget
-      - unzip
-      - php-imagick
-      - php-json
-      - php-mysql
-      - php-curl
-      - php-mbstring
-      - php-xml
-      - php-zip
-      - php-gd
-    state: present
-    update_cache: yes
-
 - name: Descargar WordPress
   get_url:
     url: https://wordpress.org/latest.tar.gz
     dest: /tmp/wordpress.tar.gz
-    mode: '0644'
-
-- name: Crear directorio para WordPress
-  file:
-    path: "{{ wordpress_path }}"
-    state: directory
-    owner: www-data
-    group: www-data
-    mode: '0755'
 
 - name: Extraer WordPress
   unarchive:
@@ -37,35 +10,35 @@
     dest: /tmp/
     remote_src: yes
 
-- name: Copiar archivos de WordPress
-  shell: cp -r /tmp/wordpress/* {{ wordpress_path }}/
-  args:
-    creates: "{{ wordpress_path }}/wp-config-sample.php"
-
-- name: Establecer permisos de directorios
-  shell: find {{ wordpress_path }} -type d -exec chmod 755 {} \;
-  changed_when: false
-
-- name: Establecer permisos de archivos
-  shell: find {{ wordpress_path }} -type f -exec chmod 644 {} \;
-  changed_when: false
-
-- name: Establecer propietario correcto
+- name: Crear directorio
   file:
-    path: "{{ wordpress_path }}"
+    path: /var/www/wordpress
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Copiar archivos
+  shell: cp -r /tmp/wordpress/* /var/www/wordpress/
+  args:
+    creates: /var/www/wordpress/index.php
+
+- name: Permisos
+  file:
+    path: /var/www/wordpress
     owner: www-data
     group: www-data
     recurse: yes
 
-- name: Configurar wp-config.php
+- name: Configurar wp-config
   template:
     src: wp-config.php.j2
-    dest: "{{ wordpress_path }}/wp-config.php"
+    dest: /var/www/wordpress/wp-config.php
     owner: www-data
     group: www-data
     mode: '0640'
 
-- name: Limpiar archivos temporales
+- name: Limpiar
   file:
     path: "{{ item }}"
     state: absent

@@ -1,0 +1,49 @@
+---
+# Rol: nginx - Instalación y configuración de Nginx
+
+- name: Instalar Nginx
+  apt:
+    name: nginx
+    state: present
+    update_cache: yes
+
+- name: Crear directorios para logs
+  file:
+    path: /var/log/nginx
+    state: directory
+    owner: www-data
+    group: adm
+    mode: '0755'
+
+- name: Eliminar configuración por defecto de Nginx
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Crear configuraciones de virtualhosts
+  template:
+    src: vhost.j2
+    dest: "/etc/nginx/sites-available/{{ item.name }}.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ virtualhosts }}"
+  notify: reload nginx
+
+- name: Habilitar virtualhosts
+  file:
+    src: "/etc/nginx/sites-available/{{ item.name }}.conf"
+    dest: "/etc/nginx/sites-enabled/{{ item.name }}.conf"
+    state: link
+  loop: "{{ virtualhosts }}"
+  notify: reload nginx
+
+- name: Verificar configuración de Nginx
+  command: nginx -t
+  changed_when: false
+
+- name: Asegurar que Nginx está iniciado y habilitado
+  service:
+    name: nginx
+    state: started
+    enabled: yes

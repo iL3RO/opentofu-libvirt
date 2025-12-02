@@ -1,0 +1,27 @@
+---
+# Rol: nginx-phpmyadmin - Enlace simbólico de phpMyAdmin en servidor Nginx
+
+- name: Eliminar directorio /var/www/phpmyadmin si existe en nginx
+  file:
+    path: /var/www/phpmyadmin
+    state: absent
+
+- name: Crear directorio temporal para phpMyAdmin
+  file:
+    path: /var/www/phpmyadmin
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Crear archivo index.php que redirige a PHP-FPM
+  copy:
+    dest: /var/www/phpmyadmin/index.php
+    content: |
+      <?php
+      // Este archivo redirige las peticiones al servidor PHP-FPM
+      header('X-Accel-Redirect: @phpmyadmin');
+      ?>
+    owner: www-data
+    group: www-data
+    mode: '0644'

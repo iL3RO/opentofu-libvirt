@@ -1,64 +1,35 @@
 ---
-# Rol: mariadb - Instalación y configuración de MariaDB
-
-- name: Instalar MariaDB Server
+- name: Instalar MariaDB
   apt:
     name:
       - mariadb-server
       - python3-pymysql
     state: present
-    update_cache: yes
 
-- name: Asegurar que MariaDB está iniciado
-  service:
-    name: mariadb
-    state: started
-    enabled: yes
-
-- name: Configurar MariaDB para escuchar en todas las interfaces
+- name: Configurar bind-address
   lineinfile:
     path: /etc/mysql/mariadb.conf.d/50-server.cnf
     regexp: '^bind-address'
     line: 'bind-address = 0.0.0.0'
   notify: restart mariadb
 
-- name: Flush handlers para reiniciar MariaDB si es necesario
-  meta: flush_handlers
+- name: Iniciar MariaDB
+  systemd:
+    name: mariadb
+    state: started
+    enabled: yes
 
-- name: Crear base de datos WordPress
+- name: Crear base de datos
   mysql_db:
     name: "{{ wordpress_db_name }}"
     state: present
     login_unix_socket: /var/run/mysqld/mysqld.sock
 
-- name: Crear usuario para WordPress con acceso desde php-fpm (192.168.200.150)
+- name: Crear usuario
   mysql_user:
     name: "{{ wordpress_db_user }}"
     password: "{{ wordpress_db_password }}"
     priv: "{{ wordpress_db_name }}.*:ALL"
-    host: '192.168.200.150'
+    host: "%"
     state: present
-    login_unix_socket: /var/run/mysqld/mysqld.sock
-
-- name: Crear usuario para WordPress con acceso desde localhost
-  mysql_user:
-    name: "{{ wordpress_db_user }}"
-    password: "{{ wordpress_db_password }}"
-    priv: "{{ wordpress_db_name }}.*:ALL"
-    host: 'localhost'
-    state: present
-    login_unix_socket: /var/run/mysqld/mysqld.sock
-
-- name: Crear usuario para WordPress con acceso desde cualquier host (%)
-  mysql_user:
-    name: "{{ wordpress_db_user }}"
-    password: "{{ wordpress_db_password }}"
-    priv: "{{ wordpress_db_name }}.*:ALL"
-    host: '%'
-    state: present
-    login_unix_socket: /var/run/mysqld/mysqld.sock
-
-- name: Flush privileges
-  mysql_query:
-    query: "FLUSH PRIVILEGES"
     login_unix_socket: /var/run/mysqld/mysqld.sock

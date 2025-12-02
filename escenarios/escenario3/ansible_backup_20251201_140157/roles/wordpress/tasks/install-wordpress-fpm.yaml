@@ -1,0 +1,59 @@
+---
+# Instalar WordPress en servidor PHP-FPM
+
+- name: Crear directorio de WordPress en PHP-FPM
+  file:
+    path: "{{ wordpress_path }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Descargar WordPress
+  get_url:
+    url: https://wordpress.org/latest.tar.gz
+    dest: /tmp/wordpress.tar.gz
+    mode: '0644'
+
+- name: Extraer WordPress
+  unarchive:
+    src: /tmp/wordpress.tar.gz
+    dest: /tmp/
+    copy: no
+    creates: /tmp/wordpress
+
+- name: Copiar archivos de WordPress al directorio web
+  copy:
+    src: /tmp/wordpress/
+    dest: "{{ wordpress_path }}"
+    remote_src: yes
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Crear archivo wp-config.php en PHP-FPM
+  template:
+    src: wp-config.php.j2
+    dest: "{{ wordpress_path }}/wp-config.php"
+    owner: www-data
+    group: www-data
+    mode: '0640'
+
+- name: Establecer permisos correctos en PHP-FPM
+  file:
+    path: "{{ wordpress_path }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+    recurse: yes
+
+- name: Limpiar archivos temporales en PHP-FPM
+  file:
+    path: /tmp/wordpress.tar.gz
+    state: absent
+
+- name: Eliminar directorio temporal de WordPress en PHP-FPM
+  file:
+    path: /tmp/wordpress
+    state: absent

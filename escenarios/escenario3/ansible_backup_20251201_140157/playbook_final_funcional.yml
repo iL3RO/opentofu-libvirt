@@ -1,0 +1,258 @@
+---
+# 1. CONFIGURAR BASE DE DATOS (solo en servidor mariadb)
+- name: Configurar MariaDB
+  hosts: mariadb
+  become: yes
+  
+  tasks:
+    - name: Instalar MariaDB
+      apt:
+        name: mariadb-server
+        state: present
+    
+    - name: Configurar acceso remoto
+      lineinfile:
+        path: /etc/mysql/mariadb.conf.d/50-server.cnf
+        regexp: '^bind-address\s*='
+        line: 'bind-address = 0.0.0.0'
+    
+    - name: Reiniciar MariaDB
+      service:
+        name: mariadb
+        state: restarted
+    
+    - name: Esperar que MariaDB esté listo
+      wait_for:
+        port: 3306
+        delay: 5
+    
+    - name: Crear base de datos WordPress
+      shell: |
+        mysql -u root <<'MYSQL_EOF'
+        CREATE DATABASE IF NOT EXISTS wordpress CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+        CREATE USER IF NOT EXISTS 'wordpress_user'@'%' IDENTIFIED BY 'wordpress_pass';
+        GRANT ALL PRIVILEGES ON wordpress.* TO 'wordpress_user'@'%';
+        FLUSH PRIVILEGES;
+        MYSQL_EOF
+      args:
+        executable: /bin/bash
+
+# 2. CONFIGURAR PHP-FPM - VERSIÓN CORREGIDA CON NOMBRE CORRECTO DEL SERVICIO
+- name: Configurar PHP-FPM
+  hosts: php-fpm
+  become: yes
+  
+  tasks:
+    - name: Instalar PHP-FPM (versión específica para Debian 12)
+      apt:
+        name:
+          - php8.4-fpm
+          - php8.4-mysql
+        state: present
+        update_cache: yes
+    
+    - name: Configurar PHP-FPM para escuchar en red
+      lineinfile:
+        path: /etc/php/8.4/fpm/pool.d/www.conf
+        regexp: '^listen ='
+        line: 'listen = 0.0.0.0:9000'
+    
+    - name: Permitir conexiones desde cualquier IP
+      lineinfile:
+        path: /etc/php/8.4/fpm/pool.d/www.conf
+        regexp: '^listen.allowed_clients'
+        line: ';listen.allowed_clients ='
+    
+    - name: Reiniciar PHP-FPM (nombre correcto del servicio)
+      service:
+        name: php8.4-fpm
+        state: restarted
+    
+    - name: Verificar que PHP-FPM está escuchando
+      shell: |
+        sleep 3
+        ss -tlnp | grep :9000 || echo "PHP-FPM no está escuchando en puerto 9000"
+      register: php_status
+      changed_when: false
+    
+    - name: Mostrar estado PHP-FPM
+      debug:
+        msg: "{{ php_status.stdout }}"
+
+# 3. CONFIGURAR NGINX + WORDPRESS (solo en servidor nginx)
+- name: Configurar servidor web
+  hosts: nginx
+  become: yes
+  
+  tasks:
+    - name: Instalar Nginx
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+    
+    - name: Instalar herramientas necesarias
+      apt:
+        name:
+          - curl
+          - wget
+          - unzip
+        state: present
+    
+    - name: Crear directorio web
+      file:
+        path: /var/www/html
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+    
+    - name: Descargar WordPress
+      shell: |
+        cd /tmp
+        wget -q https://wordpress.org/latest.tar.gz
+        tar -xzf latest.tar.gz -C /var/www/html
+        chown -R www-data:www-data /var/www/html/wordpress
+      args:
+        executable: /bin/bash
+    
+    - name: Crear wp-config.php
+      copy:
+        dest: /var/www/html/wordpress/wp-config.php
+        content: |
+          <?php
+          define('DB_NAME', 'wordpress');
+          define('DB_USER', 'wordpress_user');
+          define('DB_PASSWORD', 'wordpress_pass');
+          define('DB_HOST', '192.168.200.252');
+          define('DB_CHARSET', 'utf8mb4');
+          define('DB_COLLATE', '');
+          
+          $table_prefix = 'wp_';
+          
+          define('WP_DEBUG', false);
+          
+          if (!defined('ABSPATH')) {
+              define('ABSPATH', __DIR__ . '/');
+          }
+          
+          require_once ABSPATH . 'wp-settings.php';
+          ?>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+    
+    - name: Configurar Nginx para WordPress
+      copy:
+        dest: /etc/nginx/sites-available/wordpress
+        content: |
+          server {
+              listen 80;
+              server_name www.example.org;
+              
+              root /var/www/html/wordpress;
+              index index.php index.html index.htm;
+              
+              access_log /var/log/nginx/wordpress_access.log;
+              error_log /var/log/nginx/wordpress_error.log;
+              
+              location / {
+                  try_files $uri $uri/ /index.php?$args;
+              }
+              
+              location ~ \.php$ {
+                  include snippets/fastcgi-php.conf;
+                  fastcgi_pass 192.168.200.224:9000;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                  include fastcgi_params;
+              }
+              
+              location ~ /\.ht {
+                  deny all;
+              }
+          }
+        owner: root
+        group: root
+        mode: '0644'
+    
+    - name: Habilitar sitio WordPress
+      file:
+        src: /etc/nginx/sites-available/wordpress
+        dest: /etc/nginx/sites-enabled/wordpress
+        state: link
+    
+    - name: Deshabilitar sitio por defecto
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      ignore_errors: yes
+    
+    - name: Probar configuración Nginx
+      command: nginx -t
+      register: nginx_test
+      changed_when: false
+    
+    - name: Reiniciar Nginx
+      service:
+        name: nginx
+        state: restarted
+      when: nginx_test.rc == 0
+    
+    - name: Crear archivo de prueba
+      copy:
+        dest: /var/www/html/wordpress/test.php
+        content: |
+          <?php
+          echo "<h1 style='color: green;'>✅ ¡WordPress está funcionando!</h1>";
+          echo "<p><strong>Servidor Web:</strong> " . gethostname() . "</p>";
+          echo "<p><strong>IP:</strong> " . $_SERVER['SERVER_ADDR'] . "</p>";
+          echo "<p><strong>PHP Version:</strong> " . phpversion() . "</p>";
+          
+          // Probar conexión a MySQL
+          echo "<h2>🔌 Probando conexión a MySQL...</h2>";
+          $mysqli = @new mysqli('192.168.200.252', 'wordpress_user', 'wordpress_pass', 'wordpress');
+          
+          if ($mysqli->connect_error) {
+              echo "<p style='color: red;'>❌ Error MySQL: " . $mysqli->connect_error . "</p>";
+          } else {
+              echo "<p style='color: green;'>✅ MySQL conectado correctamente</p>";
+              echo "<p><strong>Servidor MySQL:</strong> " . $mysqli->host_info . "</p>";
+              $mysqli->close();
+          }
+          
+          // Probar si puede conectar a PHP-FPM
+          echo "<h2>🐘 Probando PHP-FPM...</h2>";
+          echo "<p><strong>PHP-FPM Server:</strong> 192.168.200.224:9000</p>";
+          echo "<p><strong>Estado:</strong> ✅ Configurado</p>";
+          ?>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+    
+    - name: Mostrar información final
+      debug:
+        msg: |
+          🎉 DESPLIEGUE COMPLETADO 🎉
+          
+          🌐 ACCESO A WORDPRESS:
+          URL Principal: http://www.example.org/
+          URL Alternativa: http://192.168.200.136/
+          Test PHP: http://www.example.org/test.php
+          Instalación: http://www.example.org/wp-admin/install.php
+          
+          🔧 CREDENCIALES BASE DE DATOS:
+          Host: 192.168.200.252
+          Base de datos: wordpress
+          Usuario: wordpress_user
+          Contraseña: wordpress_pass
+          
+          🖥️  ARQUITECTURA:
+          Web Server (Nginx): 192.168.200.136
+          PHP-FPM Server: 192.168.200.224:9000
+          Database Server: 192.168.200.252:3306
+          
+          ⚠️  SI HAY PROBLEMAS:
+          1. Ver logs: sudo tail -f /var/log/nginx/error.log
+          2. Verificar servicios: 
+             sudo systemctl status nginx php8.4-fpm mariadb
+          3. Reiniciar: sudo systemctl restart nginx php8.4-fpm
